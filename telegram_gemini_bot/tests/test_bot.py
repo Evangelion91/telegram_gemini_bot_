@@ -10,13 +10,13 @@ from datetime import datetime, timezone
 import json
 import os
 from unittest.mock import Mock, AsyncMock, patch
-from src.core.gemini_client import GeminiClient, GeminiResponse
-from src.core.message_router import MessageRouter, MessageContext
-from src.features.history.manager import HistoryManager
-from src.features.summary.analyzer import ChatAnalyzer
-from src.features.summary.generator import SummaryGenerator
-from src.handlers.message_handlers import MessageHandlers
-from src.handlers.command_handlers import CommandHandlers
+from telegram_gemini_bot.core.gemini_client import GeminiClient, GeminiResponse
+from telegram_gemini_bot.core.message_router import MessageRouter, MessageContext
+from telegram_gemini_bot.features.history.manager import HistoryManager
+from telegram_gemini_bot.features.summary.analyzer import ChatAnalyzer
+from telegram_gemini_bot.features.summary.generator import SummaryGenerator
+from telegram_gemini_bot.handlers.message_handlers import MessageHandlers
+from telegram_gemini_bot.handlers.command_handlers import CommandHandlers
 import warnings
 
 # Игнорируем предупреждения о незавершенных корутинах в тестах

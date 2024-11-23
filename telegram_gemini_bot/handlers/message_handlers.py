@@ -6,9 +6,9 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import CallbackContext
 
-from src.core.gemini_client import GeminiClient
-from src.features.history.manager import HistoryManager
-from src.config import UserStyles
+from telegram_gemini_bot.core.gemini_client import GeminiClient
+from telegram_gemini_bot.features.history.manager import HistoryManager
+from telegram_gemini_bot.config import UserStyles
 
 
 class MessageHandlers:

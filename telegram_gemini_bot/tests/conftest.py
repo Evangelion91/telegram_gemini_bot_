@@ -2,7 +2,8 @@ import pytest
 import asyncio
 import logging
 import warnings
-from typing import Generator, AsyncGenerator
+import sys
+from typing import Generator
 from _pytest.logging import LogCaptureFixture
 
 
@@ -10,42 +11,51 @@ def pytest_configure(config):
     """Конфигурация pytest"""
     # Отключаем все предупреждения о незавершенных корутинах
     warnings.filterwarnings("ignore", category=RuntimeWarning)
+    warnings.filterwarnings("ignore", category=ResourceWarning)
     warnings.filterwarnings("ignore", category=pytest.PytestUnraisableExceptionWarning)
 
-    # Устанавливаем параметры asyncio
-    asyncio.get_event_loop_policy().new_event_loop()
+    # Включаем tracemalloc для лучшей диагностики утечек памяти
+    import tracemalloc
+    tracemalloc.start()
 
 
 @pytest.fixture(scope="session")
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create an instance of the default event loop for each test case."""
-    loop = asyncio.new_event_loop()
+    if sys.platform.startswith("win"):
+        # Для Windows используем ProactorEventLoop
+        loop = asyncio.ProactorEventLoop()
+    else:
+        loop = asyncio.new_event_loop()
+
     asyncio.set_event_loop(loop)
 
-    # Отключаем отладку asyncio для уменьшения предупреждений
-    loop.set_debug(False)
+    try:
+        yield loop
+    finally:
+        # Закрываем все незавершенные задачи
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
 
-    yield loop
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
-    # Закрываем все незавершенные задачи
-    pending = asyncio.all_tasks(loop)
-    for task in pending:
-        task.cancel()
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.run_until_complete(loop.shutdown_default_executor())
 
-    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-    loop.close()
+        loop.close()
+        asyncio.set_event_loop(None)
 
 
 @pytest.fixture(scope="function", autouse=True)
-async def cleanup_pending_tasks():
+async def cleanup_pending_tasks(event_loop):
     """Clean up any pending tasks after each test"""
     yield
-    # Получаем текущий цикл событий
-    loop = asyncio.get_event_loop()
 
     # Отменяем все незавершенные задачи
-    tasks = [t for t in asyncio.all_tasks(loop) if not t.done()]
-    for task in tasks:
+    pending = asyncio.all_tasks(event_loop) - {asyncio.current_task()}
+    for task in pending:
         task.cancel()
         try:
             await asyncio.wait_for(task, timeout=1.0)
@@ -57,6 +67,7 @@ async def cleanup_pending_tasks():
 def disable_warnings():
     """Disable specific warnings for all tests."""
     warnings.filterwarnings("ignore", category=RuntimeWarning)
+    warnings.filterwarnings("ignore", category=ResourceWarning)
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     warnings.filterwarnings("ignore", category=pytest.PytestUnraisableExceptionWarning)
 
@@ -69,3 +80,10 @@ def setup_logging(caplog: LogCaptureFixture):
     # Отключаем логи от некоторых модулей
     logging.getLogger("asyncio").setLevel(logging.WARNING)
     logging.getLogger("pytest_asyncio").setLevel(logging.WARNING)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Cleanup after all tests are done."""
+    # Останавливаем tracemalloc
+    import tracemalloc
+    tracemalloc.stop()

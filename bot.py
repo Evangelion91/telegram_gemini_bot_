@@ -495,7 +495,7 @@ async def handle_message(update: Update, context: CallbackContext):
         chat_history = []
 
     style_prompt = context.chat_data.get('style_prompt',
-                                         """Отвечай блять, как двачер(не более 1000 символов)...""")
+                                         """Отвечай блять, как двачер, но с наигранной вежливостью (не более 1000 символов)...""")
 
     try:
         # Формируем контекст с учетом истории
@@ -914,114 +914,6 @@ async def main():
 
     await application.run_polling(allowed_updates=Update.ALL_TYPES)
 
-# async def main():
-#     """Главная функция"""
-#     global gemini_tester
-#     gemini_tester = GeminiTester(GEMINI_API_KEY)
-#
-#     application = (
-#         ApplicationBuilder()
-#         .token(TELEGRAM_TOKEN)
-#         .arbitrary_callback_data(True)
-#         .get_updates_read_timeout(42)
-#         .build()
-#     )
-#
-#     if not await check_telegram_bot(application):
-#         logging.getLogger('telegram_api').error("Инициализация Telegram-бота не удалась. Завершение работы.")
-#         return
-#
-#     # Инициализация менеджера истории
-#     application.bot_data['history_manager'] = ChatHistoryManager()
-#     application.bot_data['gemini_tester'] = gemini_tester
-#
-#     # Регистрируем обработчики
-#     application.add_handler(CommandHandler('style', set_style))
-#     application.add_handler(CommandHandler('add_trigger', add_trigger))
-#     application.add_handler(CommandHandler('remove_trigger', remove_trigger))
-#     application.add_handler(CommandHandler('list_triggers', list_triggers))
-#     application.add_handler(CommandHandler('clear_history', clear_history))
-#     application.add_handler(CommandHandler('show_history', show_history))
-#     application.add_handler(CommandHandler('set_instructions', set_system_instructions))
-#
-#     # Модифицированный обработчик сообщений с добавлением CHANNEL_POST
-#     application.add_handler(
-#         MessageHandler(
-#             (filters.TEXT | filters.UpdateType.MESSAGE | filters.UpdateType.CHANNEL_POST) & ~filters.COMMAND,
-#             handle_message
-#         )
-#     )
-#
-#     application.add_handler(MessageHandler(filters.PHOTO, handle_image_message))
-#     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
-#
-#     # Добавляем обработчик ошибок
-#     application.add_error_handler(error_handler)
-#
-#     await application.run_polling(allowed_updates=Update.ALL_TYPES)
-#
-# if __name__ == '__main__':
-#     nest_asyncio.apply()
-#     asyncio.run(main())
-
-
-# async def main():
-#     """Главная функция"""
-#     global gemini_tester
-#     gemini_tester = GeminiTester(GEMINI_API_KEY)
-#
-#     # Создаем билдер с включенными сообщениями от ботов
-#     application = (
-#         ApplicationBuilder()
-#         .token(TELEGRAM_TOKEN)
-#         .arbitrary_callback_data(True)
-#         .get_updates_read_timeout(42)
-#         # Явно указываем, что нужно получать все типы обновлений, включая сообщения от ботов
-#         .post_init(lambda app: app.bot._post_init(
-#             drop_pending_updates=True,
-#             get_updates_kwargs={
-#                 "allowed_updates": Update.ALL_TYPES,
-#                 "timeout": 60
-#             }
-#         ))
-#         .build()
-#     )
-#
-#     if not await check_telegram_bot(application):
-#         logging.getLogger('telegram_api').error("Инициализация Telegram-бота не удалась. Завершение работы.")
-#         return
-#
-#     # Инициализация менеджера истории
-#     application.bot_data['history_manager'] = ChatHistoryManager()
-#     application.bot_data['gemini_tester'] = gemini_tester
-#
-#     # Регистрируем обработчики
-#     application.add_handler(CommandHandler('style', set_style))
-#     application.add_handler(CommandHandler('add_trigger', add_trigger))
-#     application.add_handler(CommandHandler('remove_trigger', remove_trigger))
-#     application.add_handler(CommandHandler('list_triggers', list_triggers))
-#     application.add_handler(CommandHandler('clear_history', clear_history))
-#     application.add_handler(CommandHandler('show_history', show_history))
-#     application.add_handler(CommandHandler('set_instructions', set_system_instructions))
-#
-#     # Обработчик для всех текстовых сообщений, включая сообщения от ботов
-#     application.add_handler(
-#         MessageHandler(
-#             (filters.TEXT | filters.UpdateType.MESSAGE | filters.UpdateType.CHANNEL_POST) & ~filters.COMMAND,
-#             handle_message
-#         )
-#     )
-#
-#     application.add_handler(MessageHandler(filters.PHOTO, handle_image_message))
-#     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_chat_members))
-#
-#     # Добавляем обработчик ошибок
-#     application.add_error_handler(error_handler)
-#
-#     # Запускаем с явным указанием allowed_updates
-#     await application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
-#
-#
 if __name__ == '__main__':
     nest_asyncio.apply()
     asyncio.run(main())
