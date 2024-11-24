@@ -1,3 +1,4 @@
+# C:\Users\gta4r\PycharmProjects\TelegramBot\telegram_gemini_bot\features\summary\analyzer.py
 from typing import Dict, List, Optional, Set, Tuple
 from collections import defaultdict, Counter
 from datetime import datetime, timezone

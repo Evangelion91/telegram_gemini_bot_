@@ -1,3 +1,4 @@
+# C:\Users\gta4r\PycharmProjects\TelegramBot\telegram_gemini_bot\core\bot_manager.py
 from typing import Optional, Set, Dict, Any
 import logging
 import asyncio
@@ -59,7 +60,11 @@ class BotManager:
         # Обработчик текстовых сообщений
         self.application.add_handler(
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
+                (filters.TEXT & ~filters.COMMAND & (
+                        filters.Regex(r'@ChoYaPropustil_bot') |  # Упоминание бота
+                        (filters.REPLY & filters.Chat(chat_id=None)) |  # Ответ на сообщение бота
+                        filters.ChatType.PRIVATE  # Личные сообщения
+                )),
                 self.handle_message
             )
         )

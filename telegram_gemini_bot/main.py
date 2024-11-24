@@ -1,15 +1,23 @@
+# telegram_gemini_bot/main.py
 import asyncio
 import nest_asyncio
-from telegram.ext import ApplicationBuilder, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,  # Добавляем импорт
+    MessageHandler,
+    filters,
+    CallbackContext
+)
+from telegram import Update
+from telegram_gemini_bot.config import BotConfig
+from telegram_gemini_bot.core.bot_manager import BotManager
+from telegram_gemini_bot.core.gemini_client import GeminiClient
+from telegram_gemini_bot.features.history.manager import HistoryManager
+from telegram_gemini_bot.handlers.command_handlers import CommandHandlers
+from telegram_gemini_bot.handlers.message_handlers import MessageHandlers
+from telegram_gemini_bot.utils.logger import setup_logging
 
-from config import BotConfig
-from core.bot_manager import BotManager
-from core.gemini_client import GeminiClient
-from features.history.manager import HistoryManager
-from features.summary.generator import SummaryGenerator
-from handlers.command_handlers import CommandHandlers
-from handlers.message_handlers import MessageHandlers
-from utils.logger import setup_logging
+nest_asyncio.apply()
 
 
 async def main():
@@ -69,14 +77,20 @@ async def main():
         # Регистрируем обработчики сообщений
         bot_manager.application.add_handler(
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
+                (filters.TEXT & ~filters.COMMAND & (
+                        filters.Regex(r'@ChoYaPropustil_bot') |  # Упоминание бота
+                        filters.REPLY & filters.ChatType.GROUPS  # Ответ на сообщение бота в группах
+                )) | filters.ChatType.PRIVATE,  # Или личные сообщения
                 message_handlers.handle_text_message
             )
         )
 
         bot_manager.application.add_handler(
             MessageHandler(
-                filters.PHOTO,
+                (filters.PHOTO & ~filters.COMMAND & (
+                        filters.Regex(r'@ChoYaPropustil_bot') |  # Упоминание бота
+                        filters.REPLY & filters.ChatType.GROUPS  # Ответ на сообщение бота в группах
+                )) | filters.ChatType.PRIVATE,  # Или личные сообщения
                 message_handlers.handle_image_message
             )
         )
@@ -95,22 +109,48 @@ async def main():
 
         # Отправляем сообщение админу о запуске
         if config.ADMIN_CHAT_ID:
-            await bot_manager.application.bot.send_message(
-                chat_id=config.ADMIN_CHAT_ID,
-                text="🚀 Бот успешно запущен и готов к работе."
-            )
+            try:
+                await bot_manager.application.bot.send_message(
+                    chat_id=config.ADMIN_CHAT_ID,
+                    text="🚀 Бот успешно запущен и готов к работе."
+                )
+            except Exception as e:
+                main_logger.warning(f"Could not send message to admin: {e}")
 
-        # Запускаем бота
+        # Упрощаем запуск приложения
         main_logger.info("Starting bot polling...")
-        await bot_manager.application.run_polling(allowed_updates=Update.ALL_TYPES)
+        await bot_manager.application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            close_loop=False  # Важное изменение
+        )
 
     except Exception as e:
         main_logger.error(f"Critical error during bot initialization: {e}")
         raise
 
-    if __name__ == "__main__":
-        # Применяем nest_asyncio для работы в jupyter/ipython
-        nest_asyncio.apply()
 
-        # Запускаем бота
-        asyncio.run(main())
+def run_bot():
+    """Запуск бота с обработкой исключений и правильным закрытием event loop"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        print("Bot stopped by user")
+    except Exception as e:
+        print(f"Error running bot: {e}")
+    finally:
+        try:
+            loop.stop()
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                task.cancel()
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            loop.close()
+        except Exception as e:
+            print(f"Error closing loop: {e}")
+
+
+if __name__ == "__main__":
+    run_bot()

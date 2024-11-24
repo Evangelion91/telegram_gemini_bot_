@@ -1,3 +1,4 @@
+# C:\Users\gta4r\PycharmProjects\TelegramBot\telegram_gemini_bot\handlers\message_handlers.py
 from typing import Optional, Dict, Any
 import logging
 import os
@@ -39,37 +40,97 @@ class MessageHandlers:
             if word.lower() not in [t.lower() for t in triggers]
         )
 
+    # def _build_prompt(
+    #         self,
+    #         chat_type: str,
+    #         username: str,
+    #         message: str,
+    #         chat_id: str,  # Добавляем chat_id
+    #         style: Optional[str] = None,
+    #         is_image: bool = False
+    # ) -> str:
+    #     """Построение промпта с учетом стиля и контекста"""
+    #     components = []
+    #
+    #     # Базовый стиль
+    #     base_style = """Отвечай как двачер. Следуй инструкциям:
+    #             * Ты материшься и общаешься в стиле двачера.
+    #             * Ты помнишь предыдущие сообщения и можешь на них ссылаться
+    #             * В групповых чатах ты понимаешь, кто с кем общается.
+    #             * При ответе, ты обращаешься к пользователю по его имени.
+    #             * Ты делаешь отсылки на копипасты и мемы с 2ch.
+    #             * Твои ответы не должны превышать 1000 символов
+    #             * При ответе на изображения, вместо запрещёнки ты используешь смайлики."""
+    #     components.append(style or base_style)
+    #
+    #     # Специфичный стиль для пользователя
+    #     user_style = UserStyles.get_style(username)
+    #     if user_style:
+    #         components.append(f"Для пользователя {username}: {user_style}")
+    #
+    #     # Добавляем последние сообщения как контекст
+    #     chat_context = self.history.get_chat_context(chat_id)
+    #     if chat_context:
+    #         components.append("Предыдущие сообщения:")
+    #         for ctx_msg in chat_context[-5:]:  # Берем последние 5 сообщений
+    #             sender = "Бот" if ctx_msg['is_bot'] else ctx_msg['from_user']
+    #             components.append(f"{sender}: {ctx_msg['text']}")
+    #
+    #     # Добавляем текущее сообщение
+    #     msg_type = "Изображение" if is_image else "Сообщение"
+    #     components.append(f"Тип чата: {chat_type}")
+    #     components.append(f"{msg_type} от пользователя {username}:\n{message}")
+    #
+    #     return "\n\n".join(components)
+
     def _build_prompt(
             self,
             chat_type: str,
             username: str,
             message: str,
+            chat_id: str,
             style: Optional[str] = None,
             is_image: bool = False
     ) -> str:
-        """Построение промпта с учетом стиля и контекста"""
         components = []
 
-        # Добавляем базовый стиль
-        base_style = """Отвечай как двачер. Следуй инструкциям:
+        # 1. Добавляем стиль для пользователя
+        user_style = UserStyles.get_style(username)
+        if user_style:
+            components.append(f"Инструкции по стилю ответа:\n{user_style}")
+        else:
+            components.append(style or """Отвечай как двачер. Следуй инструкциям:
                 * Ты материшься и общаешься в стиле двачера.
                 * Ты помнишь предыдущие сообщения и можешь на них ссылаться
                 * В групповых чатах ты понимаешь, кто с кем общается.
                 * При ответе, ты обращаешься к пользователю по его имени.
                 * Ты делаешь отсылки на копипасты и мемы с 2ch.
                 * Твои ответы не должны превышать 1000 символов
-                * При ответе на изображения, вместо запрещёнки ты используешь смайлики."""
-        components.append(style or base_style)
+                * При ответе на изображения, вместо запрещёнки ты используешь смайлики.""")
 
-        # Добавляем специфичный стиль для пользователя
-        user_style = UserStyles.get_style(username)
-        if user_style:
-            components.append(f"Для пользователя {username}: {user_style}")
+        # 2. Добавляем контекст за сутки
+        todays_context = self.history.get_todays_context(chat_id)
+        if todays_context:
+            components.append(
+                "История диалогов за сегодня (используй это как контекст для ответа):\n"
+                f"{todays_context}"
+            )
 
-        # Добавляем контекст сообщения
+        # 3. Добавляем текущее сообщение
         msg_type = "Изображение" if is_image else "Сообщение"
-        components.append(f"Тип чата: {chat_type}")
-        components.append(f"{msg_type} от пользователя {username}:\n{message}")
+        components.append(
+            f"Тип чата: {chat_type}\n"
+            f"Новое {msg_type.lower()} от пользователя {username}, "
+            f"требующее ответа в указанном выше стиле:\n{message}"
+        )
+
+        # 4. Добавляем напоминание о контексте и стиле
+        components.append(
+            "Важно: твой ответ должен учитывать:\n"
+            "1. Контекст всех предыдущих диалогов за сегодня\n"
+            "2. Стиль общения двача\n"
+            "3. Персональные инструкции для этого пользователя, если они есть"
+        )
 
         return "\n\n".join(components)
 
@@ -102,6 +163,7 @@ class MessageHandlers:
                 chat_type=update.effective_chat.type,
                 username=message.from_user.username if message.from_user else "Unknown",
                 message=cleaned_message,
+                chat_id=chat_id,
                 style=context.chat_data.get('style_prompt')
             )
 
@@ -172,6 +234,7 @@ class MessageHandlers:
                     chat_type=update.effective_chat.type,
                     username=message.from_user.username if message.from_user else "Unknown",
                     message=message.caption or "",
+                    chat_id=chat_id,
                     style=context.chat_data.get('style_prompt'),
                     is_image=True
                 )

@@ -1,3 +1,4 @@
+# C:\Users\gta4r\PycharmProjects\TelegramBot\telegram_gemini_bot\features\summary\generator.py
 from typing import List, Dict, Optional
 from datetime import datetime, timezone
 import logging
@@ -68,6 +69,7 @@ class SummaryGenerator:
             response = await self.gemini.generate_text(prompt)
 
             if response.success and response.text:
+                self.logger.debug(f"Generated response: {response.text}")
                 return response.text
             else:
                 self.logger.error(f"Failed to generate summary: {response.error}")

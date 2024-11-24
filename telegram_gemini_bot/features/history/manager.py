@@ -1,3 +1,4 @@
+# C:\Users\gta4r\PycharmProjects\TelegramBot\telegram_gemini_bot\features\history\manager.py
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone, timedelta
 import json
@@ -236,3 +237,38 @@ class HistoryManager:
 
         messages = self.chat_histories[chat_id]['messages']
         return messages[-message_limit:] if messages else []
+
+    def get_todays_context(self, chat_id: str) -> str:
+        """
+        Получение и форматирование контекста за текущие сутки
+
+        Args:
+            chat_id: ID чата
+
+        Returns:
+            str: Отформатированный контекст
+        """
+        # Получаем начало текущего дня
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        # Получаем сообщения за сегодня
+        messages = self.get_messages(
+            chat_id=chat_id,
+            start_time=today_start
+        )
+
+        if not messages:
+            return ""
+
+        # Форматируем сообщения
+        formatted_messages = []
+        for msg in messages:
+            sender = "Бот" if msg.get('is_bot') else msg.get('from_user')
+            time = datetime.fromtimestamp(
+                int(msg['date_unixtime'])
+            ).strftime("%H:%M")
+            formatted_messages.append(f"[{time}] {sender}: {msg['text']}")
+
+        return "\n".join(formatted_messages)

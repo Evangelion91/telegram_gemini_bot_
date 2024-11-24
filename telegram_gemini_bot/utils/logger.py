@@ -104,37 +104,58 @@ class LoggerFilter(logging.Filter):
         )
 
 
-def setup_logging(
-        log_level: int = logging.INFO,
-        log_dir: str = "logs",
-        excluded_patterns: Optional[list] = None
-) -> BotLogger:
-    """
-    Настройка логирования для всего приложения
+def setup_logging(log_level: str = "INFO", log_dir: str = "logs") -> logging.Logger:
+    """Настройка логирования"""
+    # Создаём директорию для логов
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
 
-    Args:
-        log_level: Уровень логирования
-        log_dir: Директория для логов
-        excluded_patterns: Паттерны для фильтрации
+    # Создаём основной логгер
+    logger = logging.getLogger("telegram_bot")
+    logger.setLevel(getattr(logging, log_level))
 
-    Returns:
-        BotLogger: Настроенный логгер
-    """
-    # Отключаем стандартные логи
+    # Форматтер для файла (подробный)
+    file_formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] %(name)s (%(filename)s:%(lineno)d): %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    # Форматтер для консоли (цветной)
+    console_formatter = colorlog.ColoredFormatter(
+        "%(log_color)s[%(asctime)s] %(name)s %(levelname)s: %(message)s%(reset)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        log_colors={
+            'DEBUG': 'cyan',
+            'INFO': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'bold_red',
+        }
+    )
+
+    # Файловый обработчик (с ротацией, максимум 10 МБ)
+    file_handler = RotatingFileHandler(
+        os.path.join(log_dir, "bot.log"),
+        maxBytes=10 * 1024 * 1024,  # 10 МБ
+        backupCount=5,  # Хранить 5 файлов
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(file_formatter)
+    file_handler.setLevel(logging.DEBUG)  # Для файла пишем все логи
+
+    # Консольный обработчик
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_formatter)
+    console_handler.setLevel(logging.INFO)  # Для консоли только INFO и выше
+
+    # Добавляем обработчики к логгеру
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    # Отключаем логи от некоторых библиотек
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("asyncio").setLevel(logging.WARNING)
-    logging.getLogger("telegram.ext").setLevel(logging.WARNING)
-
-    # Создаём и настраиваем основной логгер
-    logger = BotLogger(
-        name="telegram_bot",
-        log_dir=log_dir,
-        log_level=log_level
-    )
-
-    # Добавляем фильтр
-    log_filter = LoggerFilter(excluded_patterns)
-    logger.logger.addFilter(log_filter)
+    logging.getLogger("telegram").setLevel(logging.WARNING)
 
     return logger

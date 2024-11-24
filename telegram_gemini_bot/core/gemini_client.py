@@ -1,3 +1,4 @@
+# C:\Users\gta4r\PycharmProjects\TelegramBot\telegram_gemini_bot\core\gemini_client.py
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
